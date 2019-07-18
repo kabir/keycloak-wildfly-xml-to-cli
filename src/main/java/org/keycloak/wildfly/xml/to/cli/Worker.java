@@ -35,7 +35,7 @@ public class Worker extends AbstractSubsystemTest {
 
         ModelNode op = Util.createOperation("describe", PathAddress.pathAddress("subsystem", getMainSubsystemName()));
         ModelNode result = services.executeForResult(op);
-        System.out.println(result);
+
 
         StringBuilder sb = new StringBuilder();
         sb.append("batch\n");
@@ -45,9 +45,14 @@ public class Worker extends AbstractSubsystemTest {
         }
         sb.append("run-batch");
 
+        System.out.println("========= CLI COMMANDS =========");
+
         System.out.println(sb.toString());
 
+        System.out.println("============== END ==============");
+
         cleanup();
+        System.exit(0);
     }
 
 
@@ -56,6 +61,8 @@ public class Worker extends AbstractSubsystemTest {
         ModelNode addrNode = operation.remove("address");
 
         StringBuilder sb = new StringBuilder();
+        // TODO change back when https://issues.jboss.org/browse/WFCORE-4570 is fixed
+        //sb.append(PathAddress.pathAddress(addrNode).toCLIStyleString());
         sb.append(createCLIAddress(PathAddress.pathAddress(addrNode)));
         sb.append(":");
         sb.append(opNameNode.asString());
@@ -68,7 +75,9 @@ public class Worker extends AbstractSubsystemTest {
 
     private String createCLIAddress(PathAddress address) {
         // We could have used PathAddress.toCLIStyleString() but keycloak uses some strange path element
-        // values in some cases, which need quoting. So to be safe we quote all the values
+        // values in some cases, which need quoting. So to be safe we quote values containing
+        // '/' or '='
+        // https://issues.jboss.org/browse/WFCORE-4570
         StringBuilder sb = new StringBuilder();
 
         for (Iterator<PathElement> it = address.iterator() ; it.hasNext() ; ) {
@@ -76,7 +85,14 @@ public class Worker extends AbstractSubsystemTest {
             sb.append("/");
             sb.append(element.getKey());
             sb.append("=");
-            sb.append("\"" + element.getValue() + "\"");
+            boolean quote = element.getValue().contains("/") || element.getValue().contains("=");
+            if (quote) {
+                sb.append("\"");
+            }
+            sb.append(element.getValue());
+            if (quote) {
+                sb.append("\"");
+            }
         }
         return sb.toString();
     }

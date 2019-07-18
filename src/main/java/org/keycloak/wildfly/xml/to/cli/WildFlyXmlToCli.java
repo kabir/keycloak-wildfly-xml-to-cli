@@ -1,15 +1,12 @@
 package org.keycloak.wildfly.xml.to.cli;
 
 import java.io.File;
-import java.io.IOException;
-import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
 import org.jboss.as.controller.Extension;
-import org.jboss.as.subsystem.test.AbstractSubsystemTest;
 import org.keycloak.subsystem.adapter.extension.KeycloakExtension;
 
 /**
@@ -17,21 +14,19 @@ import org.keycloak.subsystem.adapter.extension.KeycloakExtension;
  */
 public class WildFlyXmlToCli {
     public static void main(String[] args) throws Exception {
-//        if (args.length != 1) {
-//            throw new IllegalStateException("Need an input XML file");
-//        }
-//        File file = new File(args[0]);
-        File file = new File("/Users/kabir/sourcecontrol/keycloak/keycloak/adapters/oidc/wildfly/wildfly-subsystem/src/test/resources/org/keycloak/subsystem/adapter/extension/keycloak-1.1.xml");
+        if (args.length != 1) {
+            throw new IllegalStateException("Need an input XML file");
+        }
+        File file = new File(args[0]);
+        //File file = new File("/Users/kabir/sourcecontrol/keycloak/keycloak/adapters/oidc/wildfly/wildfly-subsystem/src/test/resources/org/keycloak/subsystem/adapter/extension/keycloak-1.1.xml");
         if (!file.exists()) {
             throw new IllegalStateException("Specified file does not exist: " + file);
         }
 
         URL url = WildFlyXmlToCli.class.getProtectionDomain().getCodeSource().getLocation();
 
-        System.out.println(url);
         Path dest = Paths.get(url.toURI());
         dest = dest.resolve(WildFlyXmlToCli.class.getPackage().getName().replace('.', '/'));
-        System.out.println(dest.toAbsolutePath().toString());
         dest = dest.resolve(file.getName());
         if (Files.exists(dest)) {
             Files.delete(dest);
