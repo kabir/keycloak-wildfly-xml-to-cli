@@ -15,6 +15,9 @@
     <properties>
         <version.keycloak>6.0.1</version.keycloak>
         <version.wildfly-core>9.0.1.Final</version.wildfly-core>
+        <version.plugin.exec-maven>1.6.0</version.plugin.exec-maven>
+
+        <xml.path>/set/this!</xml.path>
     </properties>
 
     <dependencies>
@@ -30,4 +33,32 @@
         </dependency>
     </dependencies>
 
+    <profiles>
+        <profile>
+            <id>run</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <version>${version.plugin.exec-maven}</version>
+                        <executions>
+                            <execution>
+                                <phase>test</phase>
+                                <goals>
+                                    <goal>java</goal>
+                                </goals>
+                                <configuration>
+                                    <mainClass>org.keycloak.wildfly.xml.to.cli.WildFlyXmlToCli</mainClass>
+                                    <arguments>
+                                        <argument>${xml.path}</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>
