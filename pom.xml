@@ -17,13 +17,26 @@
         <version.wildfly-core>9.0.1.Final</version.wildfly-core>
         <version.plugin.exec-maven>1.6.0</version.plugin.exec-maven>
 
-        <xml.path>/set/this!</xml.path>
+        <!-- Path to the file containing the keycloak subsystem snippet -->
+        <keycloak.xml.path></keycloak.xml.path>
+        <!-- The namespace version of the keycloak subsystem. Only used if -Dkeycloak.xml.path is set -->
+        <keycloak.ns.version>1.1</keycloak.ns.version>
+
+        <!-- Path to the file containing the keycloak-saml subsystem snippet -->
+        <keycloak-saml.xml.path></keycloak-saml.xml.path>
+        <!-- The namespace version of the keycloak-saml subsystem. Only used if -Dkeycloak-saml.xml.path is set -->
+        <keycloak-saml.ns.version>1.1</keycloak-saml.ns.version>
     </properties>
 
     <dependencies>
         <dependency>
             <groupId>org.keycloak</groupId>
             <artifactId>keycloak-wildfly-subsystem</artifactId>
+            <version>${version.keycloak}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.keycloak</groupId>
+            <artifactId>keycloak-saml-wildfly-subsystem</artifactId>
             <version>${version.keycloak}</version>
         </dependency>
         <dependency>
@@ -51,7 +64,10 @@
                                 <configuration>
                                     <mainClass>org.keycloak.wildfly.xml.to.cli.WildFlyXmlToCli</mainClass>
                                     <arguments>
-                                        <argument>${xml.path}</argument>
+                                        <argument>${keycloak.xml.path}</argument>
+                                        <argument>${keycloak-saml.xml.path}</argument>
+                                        <argument>${keycloak.ns.version}</argument>
+                                        <argument>${keycloak-saml.ns.version}</argument>
                                     </arguments>
                                 </configuration>
                             </execution>

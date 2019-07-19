@@ -16,19 +16,19 @@ import org.jboss.dmr.ModelType;
 /**
  * @author <a href="mailto:kabir.khan@jboss.com">Kabir Khan</a>
  */
-public class Worker extends AbstractSubsystemTest {
+class Worker extends AbstractSubsystemTest {
 
-    private final String xmlName;
+    private final String xml;
 
-    public Worker(String mainSubsystemName, Extension mainExtension, String xmlName) {
+    Worker(String mainSubsystemName, Extension mainExtension, String xml) {
         super(mainSubsystemName, mainExtension);
-        this.xmlName = xmlName;
+        this.xml = xml;
     }
 
-    void convertXmlToCli() throws Exception {
+    String convertXmlToCli() throws Exception {
         initializeParser();
         final KernelServices services =
-                super.createKernelServicesBuilder(AdditionalInitialization.MANAGEMENT).setSubsystemXmlResource(xmlName).build();
+                super.createKernelServicesBuilder(AdditionalInitialization.MANAGEMENT).setSubsystemXml(xml).build();
         if (!services.isSuccessfulBoot()) {
             throw new IllegalStateException("The XML does not appear to be valid.");
         }
@@ -38,21 +38,15 @@ public class Worker extends AbstractSubsystemTest {
 
 
         StringBuilder sb = new StringBuilder();
-        sb.append("batch\n");
         for (ModelNode addOp : result.asList()) {
             sb.append(createCLIOperation(addOp));
-            sb.append("\n");
+            sb.append("\n\n");
         }
-        sb.append("run-batch");
 
-        System.out.println("========= CLI COMMANDS =========");
-
-        System.out.println(sb.toString());
-
-        System.out.println("============== END ==============");
-
+        services.shutdown();
         cleanup();
-        System.exit(0);
+
+        return sb.toString();
     }
 
 
