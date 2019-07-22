@@ -1,50 +1,113 @@
-package org.keycloak.wildfly.xml.to.cli;
+package org.wildfly.util.xml.to.cli;
 
-import java.nio.file.Path;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.StringWriter;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.Iterator;
+import java.util.List;
 
 import org.jboss.as.controller.Extension;
 import org.jboss.as.controller.PathAddress;
 import org.jboss.as.controller.PathElement;
-import org.jboss.as.controller.operations.common.Util;
-import org.jboss.as.subsystem.test.AbstractSubsystemTest;
-import org.jboss.as.subsystem.test.AdditionalInitialization;
-import org.jboss.as.subsystem.test.KernelServices;
 import org.jboss.dmr.ModelNode;
 import org.jboss.dmr.ModelType;
+import org.wildfly.util.xml.to.cli.impl.Worker;
 
 /**
  * @author <a href="mailto:kabir.khan@jboss.com">Kabir Khan</a>
  */
-class Worker extends AbstractSubsystemTest {
+public class WildFlyXmlToCli {
 
+    private final String subsystemName;
     private final String xml;
+    private final Extension extension;
 
-    Worker(String mainSubsystemName, Extension mainExtension, String xml) {
-        super(mainSubsystemName, mainExtension);
-        this.xml = xml;
+
+    private WildFlyXmlToCli(Builder builder) {
+        this.subsystemName = builder.subsystemName;
+        this.xml = builder.xml;
+        this.extension = builder.extension;
     }
 
-    String convertXmlToCli() throws Exception {
-        initializeParser();
-        final KernelServices services =
-                super.createKernelServicesBuilder(AdditionalInitialization.MANAGEMENT).setSubsystemXml(xml).build();
-        if (!services.isSuccessfulBoot()) {
-            throw new IllegalStateException("The XML does not appear to be valid.");
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    public static class Builder {
+        private String subsystemName;
+        private String xml;
+        private Extension extension;
+
+        private Builder() {
         }
 
-        ModelNode op = Util.createOperation("describe", PathAddress.pathAddress("subsystem", getMainSubsystemName()));
-        ModelNode result = services.executeForResult(op);
+        public Builder setSubsystemName(String subsystemName) {
+            this.subsystemName = subsystemName;
+            return this;
+        }
 
+        public Builder setXml(String xml) {
+            this.xml = xml;
+            return this;
+        }
 
+        public Builder setXmlFile(String path) throws IOException {
+            return setXmlFile(new File(path));
+        }
+
+        public Builder setXmlFile(File file) throws IOException {
+            if (!file.exists()) {
+                throw new IllegalStateException("Specified keycloak file does not exist: " + file.getAbsolutePath());
+            }
+            URL configURL = file.toURI().toURL();
+
+            StringWriter writer = new StringWriter();
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(configURL.openStream(), StandardCharsets.UTF_8))){
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    writer.write(line);
+                    writer.write("\n");
+                }
+            }
+            this.xml = writer.toString();
+            return this;
+        }
+
+        public Builder setExtension(Extension extension) {
+            this.extension = extension;
+            return this;
+        }
+
+        public WildFlyXmlToCli build() {
+            if (subsystemName == null) {
+                throw new IllegalStateException("No subsystem name set");
+            }
+            if (xml == null) {
+                throw new IllegalStateException("No xml set");
+            }
+            if (extension == null) {
+                throw new IllegalStateException("No extension set");
+            }
+            return new WildFlyXmlToCli(this);
+        }
+    }
+
+    public List<ModelNode> convertXmlToOperations() throws Exception {
+        Worker worker = new Worker(subsystemName, extension, xml);
+        return worker.convertXmlToCli();
+    }
+
+    public String convertXmlToCli() throws Exception {
+        List<ModelNode> operations = convertXmlToOperations();
         StringBuilder sb = new StringBuilder();
-        for (ModelNode addOp : result.asList()) {
+        for (ModelNode addOp : operations) {
             sb.append(createCLIOperation(addOp));
             sb.append("\n\n");
         }
-
-        services.shutdown();
-        cleanup();
 
         return sb.toString();
     }
@@ -74,7 +137,7 @@ class Worker extends AbstractSubsystemTest {
         // https://issues.jboss.org/browse/WFCORE-4570
         StringBuilder sb = new StringBuilder();
 
-        for (Iterator<PathElement> it = address.iterator() ; it.hasNext() ; ) {
+        for (Iterator<PathElement> it = address.iterator(); it.hasNext() ; ) {
             PathElement element = it.next();
             sb.append("/");
             sb.append(element.getKey());
