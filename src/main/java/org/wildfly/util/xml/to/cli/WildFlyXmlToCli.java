@@ -25,12 +25,16 @@ public class WildFlyXmlToCli {
     private final String subsystemName;
     private final String xml;
     private final Extension extension;
+    private final SubsystemAddStrategy addStrategy;
+    private final boolean batchOperations;
 
 
     private WildFlyXmlToCli(Builder builder) {
         this.subsystemName = builder.subsystemName;
         this.xml = builder.xml;
         this.extension = builder.extension;
+        this.addStrategy = builder.addStrategy;
+        this.batchOperations = builder.batchOperations;
     }
 
     public static Builder builder() {
@@ -41,6 +45,8 @@ public class WildFlyXmlToCli {
         private String subsystemName;
         private String xml;
         private Extension extension;
+        private SubsystemAddStrategy addStrategy = SubsystemAddStrategy.ADD_IF_NOT_THERE;
+        private boolean batchOperations = true;
 
         private Builder() {
         }
@@ -52,6 +58,16 @@ public class WildFlyXmlToCli {
 
         public Builder setXml(String xml) {
             this.xml = xml;
+            return this;
+        }
+
+        public Builder setAddStrategy(SubsystemAddStrategy addStrategy) {
+            this.addStrategy = addStrategy;
+            return this;
+        }
+
+        public Builder setBatchOperations(boolean batchOperations) {
+            this.batchOperations = batchOperations;
             return this;
         }
 
@@ -96,22 +112,73 @@ public class WildFlyXmlToCli {
         }
     }
 
-    public List<ModelNode> convertXmlToOperations() throws Exception {
+    List<ModelNode> convertXmlToOperations() throws Exception {
         Worker worker = new Worker(subsystemName, extension, xml);
-        return worker.convertXmlToCli();
+        return worker.convertXmlToOperations();
     }
 
     public String convertXmlToCli() throws Exception {
         List<ModelNode> operations = convertXmlToOperations();
         StringBuilder sb = new StringBuilder();
-        for (ModelNode addOp : operations) {
-            sb.append(createCLIOperation(addOp));
-            sb.append("\n\n");
+        if (operations.size() > 0) {
+            boolean addedBatch = false;
+            if (batchOperations && addStrategy != SubsystemAddStrategy.ADD_IF_NOT_THERE) {
+                // ADD_IF_NOT_THERE uses an if block which does not work inside a batch, so delay adding that
+                sb.append("batch\n\n");
+                addedBatch = true;
+            }
+            for (ModelNode addOp : operations) {
+                if (isSubsystemAdd(addOp)) {
+                    String ssAdd = createSubsystemAddOpCli(addOp);
+                    if (ssAdd != null) {
+                        sb.append(ssAdd);
+                    }
+                } else {
+                    if (!addedBatch && batchOperations && addStrategy == SubsystemAddStrategy.ADD_IF_NOT_THERE) {
+                        sb.append("batch\n\n");
+                        addedBatch = true;
+                    }
+                    sb.append(createCLIOperation(addOp));
+                }
+                sb.append("\n\n");
+            }
+            if (addedBatch) {
+                sb.append("batch\n\n");
+            }
         }
 
         return sb.toString();
     }
 
+    private boolean isSubsystemAdd(ModelNode addOp) {
+        PathAddress addr = PathAddress.pathAddress(addOp.get("address"));
+        if (addr.size() == 1 && addr.getLastElement().getKey().equals("subsystem")) {
+            if (addOp.get("operation").asString().equals("add")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private String createSubsystemAddOpCli(ModelNode addOp) {
+        PathAddress addr = PathAddress.pathAddress(addOp.get("address"));
+        StringBuilder sb = new StringBuilder();
+        switch (addStrategy) {
+            case SKIP:
+                return null;
+            case ADD:
+                sb.append(createCLIOperation(addOp));
+                break;
+            case ADD_IF_NOT_THERE:
+                sb.append("if (outcome != success) of " + createCLIAddress(addr) + ":read-resource()");
+                sb.append("\n");
+                sb.append("  " + createCLIOperation(addOp));
+                sb.append("\n");
+                sb.append("end-if");
+                break;
+        }
+        return sb.toString();
+    }
 
     private String createCLIOperation(ModelNode operation) {
         ModelNode opNameNode = operation.remove("operation");
@@ -192,6 +259,12 @@ public class WildFlyXmlToCli {
             sb.append('"');
         }
         return sb.toString();
+    }
+
+    public enum SubsystemAddStrategy {
+        ADD,
+        SKIP,
+        ADD_IF_NOT_THERE
     }
 
 }

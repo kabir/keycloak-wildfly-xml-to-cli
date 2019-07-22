@@ -1,14 +1,11 @@
 package org.wildfly.util.xml.to.cli.impl;
 
-import java.util.Iterator;
 import java.util.List;
 
 import org.jboss.as.controller.Extension;
 import org.jboss.as.controller.PathAddress;
-import org.jboss.as.controller.PathElement;
 import org.jboss.as.controller.operations.common.Util;
 import org.jboss.dmr.ModelNode;
-import org.jboss.dmr.ModelType;
 
 /**
  * @author <a href="mailto:kabir.khan@jboss.com">Kabir Khan</a>
@@ -24,7 +21,7 @@ public class Worker  {
         this.xml = xml;
     }
 
-    public List<ModelNode> convertXmlToCli() throws Exception {
+    public List<ModelNode> convertXmlToOperations() throws Exception {
         delegate.initializeParser();
         final KernelServices services =
                 delegate.createKernelServicesBuilder().setSubsystemXml(xml).build();
